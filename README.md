@@ -42,3 +42,11 @@ docker run --rm \
 - `REDIS_URL` — Redis pub/sub endpoint
 - `DATABASE_URL` — Postgres connection string
 - `CHANNEL` — Redis channel, defaults to `trades.raw`
+
+## TODO
+
+| Item | Notes |
+|---|---|
+| Docker Compose | Add a local compose file with Postgres for development. |
+| Migrations | Replace inline table creation with a proper migration/init step. |
+| Replay/query | Add a small command or endpoint to inspect stored trades. |

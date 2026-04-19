@@ -1,12 +1,30 @@
 # pm-trades-db
 
-Persist Polymarket trade events from Redis into Postgres.
+Database service that subscribes to `pminspect` and stores each trade event in Postgres.
 
-## Runtime
+## Prerequisites
 
-- `REDIS_URL` — Redis pub/sub endpoint, defaults to `redis://localhost:6379/0`
-- `DATABASE_URL` — Postgres connection string, defaults to `postgresql://postgres:postgres@localhost:5432/trade_store`
-- `CHANNEL` — Redis channel, defaults to `trades.raw`
+- Python 3.12+
+- `pminspect` running and publishing to Redis at `redis://localhost:6379/0`
+- Postgres reachable via `DATABASE_URL`
+
+## Setup
+
+```bash
+cd pm-trades-db
+python3 -m venv .venv
+source .venv/bin/activate
+pip install asyncpg redis
+```
+
+## Run
+
+```bash
+REDIS_URL=redis://localhost:6379/0 \
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/trade_store \
+CHANNEL=trades.raw \
+python main.py
+```
 
 ## Docker
 
@@ -19,4 +37,8 @@ docker run --rm \
   pm-trades-db
 ```
 
-The service creates its table on startup and ignores duplicate events by event hash.
+## Environment variables
+
+- `REDIS_URL` — Redis pub/sub endpoint
+- `DATABASE_URL` — Postgres connection string
+- `CHANNEL` — Redis channel, defaults to `trades.raw`

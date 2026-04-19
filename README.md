@@ -47,6 +47,7 @@ docker run --rm \
 
 | Item | Notes |
 |---|---|
+| Setup Postgres | Get a local Postgres instance running for the service. |
 | Docker Compose | Add a local compose file with Postgres for development. |
 | Migrations | Replace inline table creation with a proper migration/init step. |
 | Replay/query | Add a small command or endpoint to inspect stored trades. |

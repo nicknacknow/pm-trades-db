@@ -2,6 +2,10 @@
 
 Database service that subscribes to `pminspect` and stores each trade event in Postgres.
 
+This is intentionally a separate consumer. `pminspect` keeps publishing trades to Redis, and this service reads
+those messages and writes them to Postgres. That means this service can stop, restart, or be replaced without
+blocking trade ingest.
+
 ## Prerequisites
 
 - Python 3.12+
@@ -35,6 +39,67 @@ docker run --rm \
   -e REDIS_URL=redis://host.docker.internal:6379/0 \
   -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/trade_store \
   pm-trades-db
+```
+
+## Docker Compose
+
+```bash
+docker compose up --build -d
+docker compose logs -f pm-trades-db
+```
+
+This starts:
+
+- `postgres` on `localhost:5432`
+- `pm-trades-db` connected to that Postgres container
+
+Notes:
+
+- Redis is expected on your host at `redis://localhost:6379/0`
+- The service container reaches it via `redis://host.docker.internal:6379/0`
+- Redis is the handoff point between ingest and storage, so `pminspect` can keep publishing even if this service
+  restarts.
+
+Stop everything:
+
+```bash
+docker compose down
+```
+
+Stop and remove Postgres data volume too:
+
+```bash
+docker compose down -v
+```
+
+## View data in Postgres (`docker exec`)
+
+Open an interactive SQL shell:
+
+```bash
+docker exec -it pm-postgres psql -U postgres -d trade_store
+```
+
+Inside `psql`:
+
+```sql
+\dt
+SELECT COUNT(*) FROM trade_events;
+SELECT * FROM trade_events ORDER BY received_at DESC LIMIT 20;
+```
+
+Exit `psql`:
+
+```text
+\q
+```
+
+Run a one-off query without opening a shell:
+
+```bash
+docker exec pm-postgres \
+  psql -U postgres -d trade_store \
+  -c "SELECT * FROM trade_events ORDER BY received_at DESC LIMIT 5;"
 ```
 
 ## Environment variables

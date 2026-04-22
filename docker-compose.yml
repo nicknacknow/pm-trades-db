@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pm-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: trade_store
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d trade_store"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pm-trades-db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pm-trades-db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://host.docker.internal:6379/0
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/trade_store
+      CHANNEL: trades.raw
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

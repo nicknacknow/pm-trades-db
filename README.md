@@ -59,6 +59,7 @@ Notes:
 - The service container reaches it via `redis://host.docker.internal:6379/0`
 - Redis is the handoff point between ingest and storage, so `pminspect` can keep publishing even if this service
   restarts.
+- If Redis is temporarily unavailable, `pm-trades-db` logs the wait and keeps retrying instead of exiting.
 
 Stop everything:
 

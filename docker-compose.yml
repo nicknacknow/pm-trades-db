@@ -25,9 +25,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      REDIS_URL: redis://host.docker.internal:6379/0
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/trade_store
-      CHANNEL: trades.raw
+      REDIS_URL: ${REDIS_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      CHANNEL: ${CHANNEL}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

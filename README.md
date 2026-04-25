@@ -44,6 +44,7 @@ docker run --rm \
 ## Docker Compose
 
 ```bash
+cp .env.example .env
 docker compose up --build -d
 docker compose logs -f pm-trades-db
 ```
@@ -52,6 +53,7 @@ This starts:
 
 - `postgres` on `localhost:5432`
 - `pm-trades-db` connected to that Postgres container
+- Compose reads `.env` from the repo root for `REDIS_URL`, `DATABASE_URL`, and `CHANNEL`
 
 Notes:
 

@@ -19,6 +19,7 @@ cd pm-trades-db
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
 ## Run
@@ -44,7 +45,6 @@ docker run --rm \
 ## Docker Compose
 
 ```bash
-cp .env.example .env
 docker compose up --build -d
 docker compose logs -f pm-trades-db
 ```
@@ -57,6 +57,7 @@ This starts:
 
 Notes:
 
+- Copy `.env.example` to `.env` before running Compose
 - Redis is expected on your host at `redis://localhost:6379/0`
 - The service container reaches it via `redis://host.docker.internal:6379/0`
 - Redis is the handoff point between ingest and storage, so `pminspect` can keep publishing even if this service

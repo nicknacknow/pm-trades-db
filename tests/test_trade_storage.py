@@ -1,0 +1,52 @@
+import unittest
+
+from app.trade_payload import canonical_payload
+from app.trade_storage import bootstrap_schema, store_trade
+
+
+class FakeConnection:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, tuple[object, ...]]] = []
+
+    async def execute(self, sql: str, *args: object) -> None:
+        self.calls.append((sql, args))
+
+
+class TradeStorageTests(unittest.IsolatedAsyncioTestCase):
+    async def test_bootstrap_schema_executes_table_and_index_statements(self) -> None:
+        connection = FakeConnection()
+
+        await bootstrap_schema(connection)  # type: ignore[arg-type]
+
+        self.assertEqual(len(connection.calls), 2)
+        self.assertIn("CREATE TABLE IF NOT EXISTS trade_events", connection.calls[0][0])
+        self.assertIn("CREATE INDEX IF NOT EXISTS idx_trade_events_received_at", connection.calls[1][0])
+
+    async def test_store_trade_persists_normalized_payload(self) -> None:
+        connection = FakeConnection()
+        payload = {
+            "event_type": "trade",
+            "event_version": "1.0.0",
+            "trade": {
+                "block_number": 1,
+                "timestamp": "2026-01-01T00:00:00+00:00",
+                "transaction_hash": "0xabcdef",
+                "wallet": "0x1234567890abcdef1234567890abcdef12345678",
+                "token_id": "1",
+                "side": 0,
+                "maker_amount": 1,
+                "taker_amount": 2,
+            },
+        }
+
+        await store_trade(connection, payload)  # type: ignore[arg-type]
+
+        self.assertEqual(len(connection.calls), 1)
+        sql, args = connection.calls[0]
+        self.assertIn("INSERT INTO trade_events", sql)
+        self.assertEqual(args[1], "trade")
+        self.assertEqual(args[2], "1.0.0")
+        self.assertEqual(args[3], 1)
+        self.assertEqual(args[4].isoformat(), "2026-01-01T00:00:00+00:00")
+        self.assertEqual(args[-1], canonical_payload(payload))
+        self.assertEqual(len(args[0]), 64)

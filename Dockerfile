@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY main.py ./
+COPY app ./app
 
 RUN python -m pip install --no-cache-dir asyncpg redis \
     && addgroup --system app \
@@ -15,4 +16,3 @@ RUN python -m pip install --no-cache-dir asyncpg redis \
 USER app
 
 CMD ["python", "main.py"]
-

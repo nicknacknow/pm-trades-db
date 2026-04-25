@@ -18,7 +18,7 @@ blocking trade ingest.
 cd pm-trades-db
 python3 -m venv .venv
 source .venv/bin/activate
-pip install asyncpg redis
+pip install -r requirements.txt
 ```
 
 ## Run
@@ -59,6 +59,7 @@ Notes:
 - The service container reaches it via `redis://host.docker.internal:6379/0`
 - Redis is the handoff point between ingest and storage, so `pminspect` can keep publishing even if this service
   restarts.
+- If Redis is temporarily unavailable, `pm-trades-db` logs the wait and keeps retrying instead of exiting.
 
 Stop everything:
 
@@ -116,3 +117,5 @@ docker exec pm-postgres \
 | Docker Compose | Add a local compose file with Postgres for development. |
 | Migrations | Replace inline table creation with a proper migration/init step. |
 | Replay/query | Add a small command or endpoint to inspect stored trades. |
+| Dashboard replay | Add replay/history functionality (for `pm-dashboard`) |
+| DB notifications | Consider Postgres `LISTEN/NOTIFY` for optional wake-up signals later. |

@@ -8,4 +8,4 @@ DATABASE_URL = os.getenv(
     "postgresql://postgres:postgres@localhost:5432/trade_store",
 )
 CHANNEL = os.getenv("CHANNEL", "trades.raw")
-RETRY_DELAY_SECONDS = 5
+RETRY_DELAY_SECONDS = int(os.getenv("RETRY_DELAY_SECONDS", "5"))

@@ -29,5 +29,5 @@ class StreamRetryTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(stream_once.await_count, 2)
         sleep_mock.assert_awaited_once_with(RETRY_DELAY_SECONDS)
-        print_mock.assert_any_call("waiting 5s before retrying")
+        print_mock.assert_any_call(f"waiting {RETRY_DELAY_SECONDS}s before retrying")
         print_mock.assert_any_call("retrying Redis connection")

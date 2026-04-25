@@ -117,3 +117,5 @@ docker exec pm-postgres \
 | Docker Compose | Add a local compose file with Postgres for development. |
 | Migrations | Replace inline table creation with a proper migration/init step. |
 | Replay/query | Add a small command or endpoint to inspect stored trades. |
+| Dashboard replay | Add replay/history functionality (for `pm-dashboard`) |
+| DB notifications | Consider Postgres `LISTEN/NOTIFY` for optional wake-up signals later. |

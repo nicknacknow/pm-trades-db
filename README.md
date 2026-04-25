@@ -119,3 +119,4 @@ docker exec pm-postgres \
 | Replay/query | Add a small command or endpoint to inspect stored trades. |
 | Dashboard replay | Add replay/history functionality (for `pm-dashboard`) |
 | DB notifications | Consider Postgres `LISTEN/NOTIFY` for optional wake-up signals later. |
+| Redis outage handling | Investigate whether the consumer should retry forever or stop after N failures. Perhaps add prometheus / grafana. |

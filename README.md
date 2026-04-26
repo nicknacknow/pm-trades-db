@@ -19,6 +19,7 @@ cd pm-trades-db
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
 ## Run
@@ -37,8 +38,7 @@ python main.py
 docker build -t pm-trades-db .
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
-  -e REDIS_URL=redis://host.docker.internal:6379/0 \
-  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/trade_store \
+  --env-file .env \
   -p 8001:8001 \
   pm-trades-db
 ```
@@ -46,6 +46,7 @@ docker run --rm \
 ## Docker Compose
 
 ```bash
+cp .env.example .env
 docker compose up --build -d
 docker compose logs -f pm-trades-db
 ```
@@ -54,9 +55,12 @@ This starts:
 
 - `postgres` on `localhost:5432`
 - `pm-trades-db` connected to that Postgres container
+- metrics on `http://localhost:8001/metrics`
+- Compose reads `.env` from the repo root for `REDIS_URL`, `DATABASE_URL`, `CHANNEL`, and `METRICS_PORT`
 
 Notes:
 
+- Copy `.env.example` to `.env` before running Compose
 - Redis is expected on your host at `redis://localhost:6379/0`
 - The service container reaches it via `redis://host.docker.internal:6379/0`
 - Metrics are exposed on `http://localhost:8001/metrics`
@@ -81,7 +85,7 @@ docker compose down -v
 Open an interactive SQL shell:
 
 ```bash
-docker exec -it pm-postgres psql -U postgres -d trade_store
+docker compose exec postgres psql -U postgres -d trade_store
 ```
 
 Inside `psql`:
@@ -101,7 +105,7 @@ Exit `psql`:
 Run a one-off query without opening a shell:
 
 ```bash
-docker exec pm-postgres \
+docker compose exec postgres \
   psql -U postgres -d trade_store \
   -c "SELECT * FROM trade_events ORDER BY received_at DESC LIMIT 5;"
 ```
@@ -111,6 +115,9 @@ docker exec pm-postgres \
 - `REDIS_URL` — Redis pub/sub endpoint
 - `DATABASE_URL` — Postgres connection string
 - `CHANNEL` — Redis channel, defaults to `trades.raw`
+- `POSTGRES_USER` — Postgres username, defaults to `postgres`
+- `POSTGRES_PASSWORD` — Postgres password, defaults to `postgres`
+- `POSTGRES_DB` — Postgres database name, defaults to `trade_store`
 - `METRICS_PORT` — HTTP port for Prometheus metrics, defaults to `8001`
 
 ## TODO

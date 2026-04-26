@@ -28,6 +28,7 @@ cp .env.example .env
 REDIS_URL=redis://localhost:6379/0 \
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/trade_store \
 CHANNEL=trades.raw \
+METRICS_PORT=8001 \
 python main.py
 ```
 
@@ -55,7 +56,8 @@ This starts:
 
 - `postgres` on `localhost:5432`
 - `pm-trades-db` connected to that Postgres container
-- Compose reads `.env` from the repo root for `REDIS_URL`, `DATABASE_URL`, and `CHANNEL`
+- metrics on `http://localhost:8001/metrics`
+- Compose reads `.env` from the repo root for `REDIS_URL`, `DATABASE_URL`, `CHANNEL`, and `METRICS_PORT`
 
 Notes:
 
@@ -128,3 +130,4 @@ docker compose exec postgres \
 | Replay/query | Add a small command or endpoint to inspect stored trades. |
 | Dashboard replay | Add replay/history functionality (for `pm-dashboard`) |
 | DB notifications | Consider Postgres `LISTEN/NOTIFY` for optional wake-up signals later. |
+| Redis outage handling | Investigate whether the consumer should retry forever or stop after N failures. Perhaps add prometheus / grafana. |

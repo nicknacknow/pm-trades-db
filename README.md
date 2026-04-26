@@ -27,6 +27,7 @@ pip install -r requirements.txt
 REDIS_URL=redis://localhost:6379/0 \
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/trade_store \
 CHANNEL=trades.raw \
+METRICS_PORT=8001 \
 python main.py
 ```
 
@@ -38,6 +39,7 @@ docker run --rm \
   --add-host=host.docker.internal:host-gateway \
   -e REDIS_URL=redis://host.docker.internal:6379/0 \
   -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/trade_store \
+  -p 8001:8001 \
   pm-trades-db
 ```
 
@@ -57,6 +59,7 @@ Notes:
 
 - Redis is expected on your host at `redis://localhost:6379/0`
 - The service container reaches it via `redis://host.docker.internal:6379/0`
+- Metrics are exposed on `http://localhost:8001/metrics`
 - Redis is the handoff point between ingest and storage, so `pminspect` can keep publishing even if this service
   restarts.
 - If Redis is temporarily unavailable, `pm-trades-db` logs the wait and keeps retrying instead of exiting.
@@ -108,6 +111,7 @@ docker exec pm-postgres \
 - `REDIS_URL` — Redis pub/sub endpoint
 - `DATABASE_URL` — Postgres connection string
 - `CHANNEL` — Redis channel, defaults to `trades.raw`
+- `METRICS_PORT` — HTTP port for Prometheus metrics, defaults to `8001`
 
 ## TODO
 

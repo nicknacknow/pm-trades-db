@@ -4,12 +4,14 @@ import asyncio
 
 import asyncpg
 
+from app.metrics import start_metrics_server
 from app.settings import DATABASE_URL
 from app.trade_storage import bootstrap_schema
 from app.trade_stream import stream_trade_events
 
 
 async def main() -> None:
+    start_metrics_server()
     db_pool = await asyncpg.create_pool(DATABASE_URL)
     try:
         async with db_pool.acquire() as connection:

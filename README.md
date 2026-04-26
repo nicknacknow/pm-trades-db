@@ -34,17 +34,19 @@ python main.py
 ## Docker
 
 ```bash
+cp .env.example .env
 docker build -t pm-trades-db .
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \
-  -e REDIS_URL=redis://host.docker.internal:6379/0 \
-  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/trade_store \
+  --env-file .env \
+  -p 8001:8001 \
   pm-trades-db
 ```
 
 ## Docker Compose
 
 ```bash
+cp .env.example .env
 docker compose up --build -d
 docker compose logs -f pm-trades-db
 ```
@@ -81,7 +83,7 @@ docker compose down -v
 Open an interactive SQL shell:
 
 ```bash
-docker exec -it pm-postgres psql -U postgres -d trade_store
+docker compose exec postgres psql -U postgres -d trade_store
 ```
 
 Inside `psql`:
@@ -101,7 +103,7 @@ Exit `psql`:
 Run a one-off query without opening a shell:
 
 ```bash
-docker exec pm-postgres \
+docker compose exec postgres \
   psql -U postgres -d trade_store \
   -c "SELECT * FROM trade_events ORDER BY received_at DESC LIMIT 5;"
 ```
@@ -111,6 +113,10 @@ docker exec pm-postgres \
 - `REDIS_URL` — Redis pub/sub endpoint
 - `DATABASE_URL` — Postgres connection string
 - `CHANNEL` — Redis channel, defaults to `trades.raw`
+- `POSTGRES_USER` — Postgres username, defaults to `postgres`
+- `POSTGRES_PASSWORD` — Postgres password, defaults to `postgres`
+- `POSTGRES_DB` — Postgres database name, defaults to `trade_store`
+- `METRICS_PORT` — HTTP port for Prometheus metrics, defaults to `8001`
 
 ## TODO
 

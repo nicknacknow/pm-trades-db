@@ -5,13 +5,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY main.py ./
-COPY app ./app
+COPY requirements.txt ./
 
-RUN python -m pip install --no-cache-dir asyncpg redis \
+RUN python -m pip install --no-cache-dir -r requirements.txt \
     && addgroup --system app \
     && adduser --system --ingroup app app \
     && chown -R app:app /app
+
+COPY main.py ./
+COPY app ./app
+
+EXPOSE 8001
 
 USER app
 

@@ -10,6 +10,7 @@ from app.trade_payload import (
     parse_trade_event,
     parse_trade_timestamp,
 )
+from app.metrics import record_trade_stored
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS trade_events (
@@ -85,3 +86,5 @@ async def store_trade(
         int(trade["taker_amount"]),
         payload_json,
     )
+    record_trade_stored()
+    # is it worth logging this? i.e. explicit data? perhaps just link to primary key?

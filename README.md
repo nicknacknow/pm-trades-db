@@ -35,7 +35,6 @@ python main.py
 ## Docker
 
 ```bash
-cp .env.example .env
 docker build -t pm-trades-db .
 docker run --rm \
   --add-host=host.docker.internal:host-gateway \

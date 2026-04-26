@@ -9,3 +9,4 @@ DATABASE_URL = os.getenv(
 )
 CHANNEL = os.getenv("CHANNEL", "trades.raw")
 RETRY_DELAY_SECONDS = int(os.getenv("RETRY_DELAY_SECONDS", "5"))
+METRICS_PORT = int(os.getenv("METRICS_PORT", "8001"))

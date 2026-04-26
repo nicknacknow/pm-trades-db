@@ -9,6 +9,12 @@ import asyncpg
 import redis.asyncio as redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 
+from app.metrics import (
+    mark_redis_connected,
+    mark_redis_disconnected,
+    record_malformed_trade_event,
+    record_redis_retry,
+)
 from app.settings import CHANNEL, REDIS_URL, RETRY_DELAY_SECONDS
 from app.trade_storage import store_trade
 
@@ -32,6 +38,7 @@ async def stream_trade_events_once(db_pool: asyncpg.Pool) -> None:
     try:
         print(f"connecting to Redis at {REDIS_URL} for {CHANNEL}")
         await pubsub.subscribe(CHANNEL)
+        mark_redis_connected()
         print(f"connected to Redis; listening on {CHANNEL}")
 
         async for message in pubsub.listen():
@@ -47,8 +54,10 @@ async def stream_trade_events_once(db_pool: asyncpg.Pool) -> None:
                 async with db_pool.acquire() as connection:
                     await store_trade(connection, payload)
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                record_malformed_trade_event()
                 print(f"skipping malformed trade event: {exc}")
     finally:
+        mark_redis_disconnected()
         await close_redis_subscription(redis_client, pubsub)
 
 
@@ -57,6 +66,7 @@ async def stream_trade_events(db_pool: asyncpg.Pool) -> None:
         try:
             await stream_trade_events_once(db_pool)
         except RedisConnectionError as exc:
+            record_redis_retry()
             print(f"Redis unavailable: {exc}")
             print(f"waiting {RETRY_DELAY_SECONDS}s before retrying")
             await asyncio.sleep(RETRY_DELAY_SECONDS)

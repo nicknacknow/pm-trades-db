@@ -28,6 +28,8 @@ services:
       REDIS_URL: redis://host.docker.internal:6379/0
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/trade_store
       CHANNEL: trades.raw
+    ports:
+      - "8001:8001"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

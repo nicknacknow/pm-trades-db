@@ -5,6 +5,8 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from app.pubsub.validator import validate_trade_event_payload
+
 
 def canonical_payload(payload: dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -22,6 +24,8 @@ def parse_trade_timestamp(timestamp: str) -> datetime:
 
 
 def parse_trade_event(payload: dict[str, Any]) -> dict[str, Any]:
+    validate_trade_event_payload(payload)
+
     event_type = str(payload["event_type"])
     event_version = str(payload["event_version"])
     trade = payload["trade"]

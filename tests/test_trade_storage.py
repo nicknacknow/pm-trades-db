@@ -1,6 +1,7 @@
 import unittest
 
-from app.trade_payload import canonical_payload
+from app.trade_payload import canonical_payload, parse_trade_event
+from app.pubsub.topics import TRADE_EVENT_TYPE, TRADE_EVENT_VERSION
 from app.trade_storage import bootstrap_schema, store_trade
 
 
@@ -25,27 +26,30 @@ class TradeStorageTests(unittest.IsolatedAsyncioTestCase):
     async def test_store_trade_persists_normalized_payload(self) -> None:
         connection = FakeConnection()
         payload = {
-            "event_type": "trade",
-            "event_version": "1.0.0",
+            "event_type": TRADE_EVENT_TYPE,
+            "event_version": TRADE_EVENT_VERSION,
             "trade": {
                 "block_number": 1,
                 "timestamp": "2026-01-01T00:00:00+00:00",
                 "transaction_hash": "0xabcdef",
                 "wallet": "0x1234567890abcdef1234567890abcdef12345678",
                 "token_id": "1",
+                "condition_id": "0x" + "11" * 32,
                 "side": 0,
                 "maker_amount": 1,
                 "taker_amount": 2,
             },
         }
 
-        await store_trade(connection, payload)  # type: ignore[arg-type]
+        parsed_payload = parse_trade_event(payload)
+
+        await store_trade(connection, parsed_payload)
 
         self.assertEqual(len(connection.calls), 1)
         sql, args = connection.calls[0]
         self.assertIn("INSERT INTO trade_events", sql)
-        self.assertEqual(args[1], "trade")
-        self.assertEqual(args[2], "1.0.0")
+        self.assertEqual(args[1], TRADE_EVENT_TYPE)
+        self.assertEqual(args[2], TRADE_EVENT_VERSION)
         self.assertEqual(args[3], 1)
         self.assertEqual(args[4].isoformat(), "2026-01-01T00:00:00+00:00")
         self.assertEqual(args[-1], canonical_payload(payload))

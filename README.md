@@ -64,7 +64,7 @@ Notes:
 - Copy `.env.example` to `.env` before running Compose
 - Redis is expected on your host at `redis://localhost:6379/0`
 - The service container reaches it via `redis://host.docker.internal:6379/0`
-- Metrics are scraped by `pm-observability` at `http://pm-trades-db:8001/metrics`
+- Metrics are scraped by `pm-project` at `http://pm-trades-db:8001/metrics`
 - Redis is the handoff point between ingest and storage, so `pminspect` can keep publishing even if this service
   restarts.
 - If Redis is temporarily unavailable, `pm-trades-db` logs the wait and keeps retrying instead of exiting.

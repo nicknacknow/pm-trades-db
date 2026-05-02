@@ -15,7 +15,7 @@ services:
       timeout: 5s
       retries: 10
     networks:
-      - app
+      - pm-trades-db-internal
 
   pm-trades-db:
     build:
@@ -34,14 +34,14 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
     networks:
-      - app
-      - pm-observability
+      - pm-trades-db-internal
+      - pm-project
 
 volumes:
   postgres_data:
 
 networks:
-  app:
-  pm-observability:
+  pm-trades-db-internal:
+  pm-project:
     external: true
-    name: pm-observability
+    name: pm-project

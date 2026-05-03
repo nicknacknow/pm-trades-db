@@ -46,7 +46,7 @@ docker run --rm \
 ## Docker Compose
 
 ```bash
-docker network create pm-observability
+docker network create pm-project
 cp .env.example .env
 docker compose up --build -d
 docker compose logs -f pm-trades-db
@@ -57,6 +57,7 @@ This starts:
 - `postgres` on `localhost:5432`
 - `pm-trades-db` connected to that Postgres container
 - metrics on port `8001` inside the shared Docker network
+- metrics on `localhost:18001/metrics` from the host
 - Compose reads `.env` from the repo root for `REDIS_URL`, `DATABASE_URL`, `CHANNEL`, and `METRICS_PORT`
 
 Notes:
@@ -65,6 +66,7 @@ Notes:
 - Redis is expected on your host at `redis://localhost:6379/0`
 - The service container reaches it via `redis://host.docker.internal:6379/0`
 - Metrics are scraped by `pm-project` at `http://pm-trades-db:8001/metrics`
+- You can also open the metrics endpoint locally at `http://localhost:18001/metrics`
 - Redis is the handoff point between ingest and storage, so `pminspect` can keep publishing even if this service
   restarts.
 - If Redis is temporarily unavailable, `pm-trades-db` logs the wait and keeps retrying instead of exiting.

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS trade_events (
     transaction_hash TEXT NOT NULL,
     wallet TEXT NOT NULL,
     token_id TEXT NOT NULL,
+    condition_id TEXT NOT NULL DEFAULT '',
     side SMALLINT NOT NULL,
     maker_amount BIGINT NOT NULL,
     taker_amount BIGINT NOT NULL,
@@ -45,13 +46,14 @@ INSERT INTO trade_events (
     transaction_hash,
     wallet,
     token_id,
+    condition_id,
     side,
     maker_amount,
     taker_amount,
     payload_json
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb
 )
 ON CONFLICT (event_id) DO NOTHING;
 """
@@ -81,6 +83,7 @@ async def store_trade(
         str(trade["transaction_hash"]),
         str(trade["wallet"]),
         str(trade["token_id"]),
+        str(trade.get("condition_id", "")),
         int(trade["side"]),
         int(trade["maker_amount"]),
         int(trade["taker_amount"]),

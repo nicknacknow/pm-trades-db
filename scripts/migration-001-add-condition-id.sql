@@ -1,8 +1,8 @@
--- Migration 001: Extract condition_id from payload_json before dropping it.
+-- Migration 001: Extract condition_id and remove payload_json.
 --
--- Run this against the existing database before deploying the updated code.
--- The code change adds the column via CREATE TABLE IF NOT EXISTS, but for
--- existing rows the column will be empty until this migration runs.
+-- The current schema (no data) already includes condition_id and excludes
+-- payload_json. This migration is only needed if restoring from an old
+-- backup that still has payload_json.
 
 ALTER TABLE trade_events ADD COLUMN IF NOT EXISTS condition_id TEXT NOT NULL DEFAULT '';
 
@@ -10,5 +10,7 @@ UPDATE trade_events
 SET condition_id = COALESCE(payload_json->'trade'->>'condition_id', '')
 WHERE condition_id = '';
 
--- Optional: once condition_id is populated, drop payload_json to save space.
--- ALTER TABLE trade_events DROP COLUMN payload_json;
+ALTER TABLE trade_events DROP COLUMN IF EXISTS payload_json;
+
+CREATE INDEX IF NOT EXISTS idx_trade_events_condition_id
+    ON trade_events (condition_id);

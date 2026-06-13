@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS trade_events (
     side SMALLINT NOT NULL,
     maker_amount BIGINT NOT NULL,
     taker_amount BIGINT NOT NULL,
-    payload_json JSONB NOT NULL,
     received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
@@ -34,6 +33,11 @@ CREATE TABLE IF NOT EXISTS trade_events (
 CREATE_INDEX_SQL = """
 CREATE INDEX IF NOT EXISTS idx_trade_events_received_at
     ON trade_events (received_at DESC);
+"""
+
+CREATE_CONDITION_ID_INDEX_SQL = """
+CREATE INDEX IF NOT EXISTS idx_trade_events_condition_id
+    ON trade_events (condition_id);
 """
 
 INSERT_SQL = """
@@ -49,11 +53,10 @@ INSERT INTO trade_events (
     condition_id,
     side,
     maker_amount,
-    taker_amount,
-    payload_json
+    taker_amount
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
 ON CONFLICT (event_id) DO NOTHING;
 """
@@ -62,6 +65,7 @@ ON CONFLICT (event_id) DO NOTHING;
 async def bootstrap_schema(connection: asyncpg.Connection) -> None:
     await connection.execute(CREATE_TABLE_SQL)
     await connection.execute(CREATE_INDEX_SQL)
+    await connection.execute(CREATE_CONDITION_ID_INDEX_SQL)
 
 
 async def store_trade(
@@ -87,7 +91,6 @@ async def store_trade(
         int(trade["side"]),
         int(trade["maker_amount"]),
         int(trade["taker_amount"]),
-        payload_json,
     )
     record_trade_stored()
     # is it worth logging this? i.e. explicit data? perhaps just link to primary key?

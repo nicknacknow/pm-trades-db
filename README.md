@@ -45,9 +45,19 @@ docker run --rm \
 
 ## Backup
 
-A daily backup script lives at `scripts/backup.sh`. It runs automatically at 3 AM via a system cronjob (`/etc/cron.d/pm-trades-db-backup`).
+A daily backup script lives at `scripts/backup.sh`. It runs automatically at 3 AM via a system cronjob.
 
-Dumps the `trade_store` database with max gzip compression to `/var/backups/pm-trades-db/`. Skips gracefully if Postgres isn't running.
+### Cronjob setup
+
+Place this in `/etc/cron.d/pm-trades-db-backup`:
+
+```
+0 3 * * * <user> /path/to/pm-trades-db/scripts/backup.sh
+```
+
+Replace `<user>` and the path to match your system. The format is: `minute hour day month weekday user command`.
+
+The script dumps the `trade_store` database with max gzip compression (`-Z 9`) to `/var/backups/pm-trades-db/trade_YYYYMMDD.sql.gz`. Skips gracefully if Postgres isn't running.
 
 ## Docker Compose
 

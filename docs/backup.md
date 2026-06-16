@@ -22,7 +22,13 @@ Logs are available with:
 journalctl -u pm-trades-db-backup.service
 ```
 
-### Script behavior
+## Install / start
+
+```bash
+systemctl --user enable --now pm-trades-db-backup.timer
+```
+
+## Script behavior
 - Skips if Postgres is not healthy.
 - Dumps the database with gzip level 9.
 - Runs `VACUUM ANALYZE` after the dump.

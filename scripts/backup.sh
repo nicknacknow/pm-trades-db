@@ -5,7 +5,7 @@ DB_NAME="trade_store"
 BACKUP_DIR="/var/backups/pm-trades-db"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
+COMPOSE_FILE="$(dirname "$SCRIPT_DIR")/docker-compose.yml"
 
 # Skip if postgres is not running
 docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready -U postgres -d trade_store > /dev/null 2>&1 || exit 0

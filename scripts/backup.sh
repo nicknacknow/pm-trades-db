@@ -4,9 +4,9 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────────
 # pm-trades-db — daily incremental PostgreSQL backup
 # ──────────────────────────────────────────────────────────────
-# Generates two output files each run:
-#   trade_YYYYMMDD_schema.sql.gz   — schema only (structure)
-#   trade_YYYYMMDD.sql.gz          — yesterday's data only (incremental)
+# Generates two output files per table each run:
+#   pm_backup_YYYYMMDD_schema.sql.gz        — schema only (structure)
+#   pm_backup_YYYYMMDD_TABLENAME.sql.gz     — yesterday's data only (incremental)
 #
 # When CLEANUP_AFTER_BACKUP is true the dumped rows are deleted
 # from the live database and the table is vacuumed-full to
@@ -57,13 +57,13 @@ TODAY="${CUTOFF//-/}"
 # Tiny file (≈1 KB) — structure only, no data.
 docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump \
   -U postgres -d "$DB_NAME" --schema-only -Z 9 \
-  > "$BACKUP_DIR/trade_${TODAY}_schema.sql.gz"
+  > "$BACKUP_DIR/pm_backup_${TODAY}_schema.sql.gz"
 
 # ── Incremental data dumps ────────────────────────────────────
 # Only rows where received_at fell on the *previous* calendar day.
 DUMP_OK=true
 for table in "${DATA_TABLES[@]}"; do
-  dump_file="$BACKUP_DIR/trade_${TODAY}.sql.gz"
+  dump_file="$BACKUP_DIR/pm_backup_${TODAY}_${table}.sql.gz"
   if ! docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump \
     -U postgres -d "$DB_NAME" --data-only --table="$table" \
     --where="received_at >= '${CUTOFF}'::date - INTERVAL '1 day' AND received_at < '${CUTOFF}'::date" \

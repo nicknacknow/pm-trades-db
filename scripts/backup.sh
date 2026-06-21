@@ -46,7 +46,7 @@ COMPOSE_FILE="$(dirname "$SCRIPT_DIR")/docker-compose.yml"
 
 # Skip if postgres is not running
 docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready \
-  -U postgres -d trade_store > /dev/null 2>&1 || exit 0
+  -U postgres -d "$DB_NAME" > /dev/null 2>&1 || exit 0
 
 mkdir -p "$BACKUP_DIR"
 

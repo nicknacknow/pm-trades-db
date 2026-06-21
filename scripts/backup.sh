@@ -50,8 +50,8 @@ docker compose -f "$COMPOSE_FILE" exec -T postgres pg_isready \
 
 mkdir -p "$BACKUP_DIR"
 
-TODAY="$(date +%Y%m%d)"
 CUTOFF="$(date +%Y-%m-%d)"
+TODAY="${CUTOFF//-/}"
 
 # ── Schema dump ────────────────────────────────────────────────
 # Tiny file (≈1 KB) — structure only, no data.

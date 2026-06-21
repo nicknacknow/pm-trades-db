@@ -201,6 +201,20 @@ so a locked Postgres just means the queue backs up harmlessly.
 **TODO:** Convert `trade_stream.py` from `pubsub.listen()` to
 `BLPOP`/`BRPOP` (LIST) or `XREAD` (stream).
 
+### CLI parameters for ad-hoc runs
+
+The script only backs up "yesterday" relative to the current date.  For
+retroactive runs or catch-up after a missed backup, it would be useful to
+pass `--date` and `--duration`:
+
+```bash
+# Back up June 15-17 inclusive
+bash scripts/backup.sh --date 2026-06-15 --duration 3
+```
+
+**TODO:** Add argument parsing to `backup.sh`.  Defaults remain `--date today
+--duration 1` so the 03:00 cron behaviour is unchanged.
+
 ---
 
 ## Troubleshooting

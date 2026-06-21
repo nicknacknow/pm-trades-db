@@ -36,6 +36,10 @@ BACKUP_DIR="/var/backups/pm-trades-db"
 #       (USB/NAS/S3) and the backup increment chain is complete.
 CLEANUP_AFTER_BACKUP=true
 
+# TODO: Accept --date and --duration CLI params to allow retroactive /
+# catch-up runs.  Defaults to today and 1 day (previous day).
+# E.g. --date 2026-06-15 --duration 3 would back up June 15-17.
+
 # Tables whose data is dumped incrementally (by received_at).
 # Extend this array when adding new data tables.
 DATA_TABLES=("trade_events")

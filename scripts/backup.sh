@@ -84,20 +84,23 @@ done
 #   2. Every data-dump succeeded AND produced a non-empty file
 if [ "$CLEANUP_AFTER_BACKUP" = "true" ] && [ "$DUMP_OK" = "true" ]; then
   echo "Cleaning up yesterday's data from live database..."
-  docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
-    -U postgres -d "$DB_NAME" \
-    -c "DELETE FROM trade_events WHERE received_at < '${CUTOFF}'::date;"
-
-  docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
-    -U postgres -d "$DB_NAME" \
-    -c "VACUUM FULL trade_events;"
+  for table in "${DATA_TABLES[@]}"; do
+    docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
+      -U postgres -d "$DB_NAME" \
+      -c "DELETE FROM ${table} WHERE received_at < '${CUTOFF}'::date;"
+    docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
+      -U postgres -d "$DB_NAME" \
+      -c "VACUUM FULL ${table};"
+  done
   echo "Cleanup complete."
 fi
 
 # ANALYZE refreshes query-planner stats after VACUUM FULL rewrites
-# the table.  Harmless now (no queries), essential once we query.
-docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
-  -U postgres -d "$DB_NAME" -c "ANALYZE trade_events;" > /dev/null 2>&1
+# each table. Harmless now (no queries), essential once we query.
+for table in "${DATA_TABLES[@]}"; do
+  docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
+    -U postgres -d "$DB_NAME" -c "ANALYZE ${table};" > /dev/null 2>&1
+done
 
 if [ "$CLEANUP_AFTER_BACKUP" = "true" ] && [ "$DUMP_OK" = "false" ]; then
   echo "WARNING: Backup incomplete — skipping cleanup. Yesterday's data is preserved." >&2

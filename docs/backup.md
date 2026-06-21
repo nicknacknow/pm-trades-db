@@ -17,14 +17,14 @@ for an **incremental backup with live cleanup**:
 
 | File | Contents | Frequency |
 |---|---|---|
-| `trade_YYYYMMDD_schema.sql.gz` | Table structure only (≈1 KB) | Every run |
-| `trade_YYYYMMDD.sql.gz` | Rows where `received_at` fell on the **previous** calendar day | Every run |
+| `pm_backup_YYYYMMDD_schema.sql.gz` | Table structure only (≈1 KB) | Every run |
+| `pm_backup_YYYYMMDD_TABLENAME.sql.gz` | Rows where `received_at` fell on the **previous** calendar day | Every run, one per table |
 
-When `CLEANUP_AFTER_BACKUP=true` the script additionally does:
+When `CLEANUP_AFTER_BACKUP=true` the script additionally does (per table in `DATA_TABLES`):
 
 ```sql
-DELETE FROM trade_events WHERE received_at < 'YYYY-MM-DD'::date;
-VACUUM FULL trade_events;
+DELETE FROM table WHERE received_at < 'YYYY-MM-DD'::date;
+VACUUM FULL table;
 ```
 
 (The cutoff date is captured once at script start so the dump and the DELETE
@@ -86,23 +86,23 @@ ls -lh /var/backups/pm-trades-db
 
 ```bash
 # 1. Apply schema (any schema dump works — they're identical)
-gunzip -c /var/backups/pm-trades-db/trade_20260621_schema.sql.gz \
+gunzip -c /var/backups/pm-trades-db/pm_backup_20260622_schema.sql.gz \
   | docker compose exec -T postgres psql -U postgres -d trade_store
 
 # 2. Restore the last full dump as a baseline
 gunzip -c /var/backups/pm-trades-db/trade_20260621.sql.gz \
   | docker compose exec -T postgres psql -U postgres -d trade_store
 
-# 3. Apply each daily increment in order
-for f in /var/backups/pm-trades-db/trade_2026062*.sql.gz; do
+# 3. Apply each daily increment in order (per table)
+for f in /var/backups/pm-trades-db/pm_backup_*_trade_events.sql.gz; do
   gunzip -c "$f" | docker compose exec -T postgres psql -U postgres -d trade_store
 done
 ```
 
-### Single-day restore (a specific day's data)
+### Single-day restore (a specific day's table data)
 
 ```bash
-gunzip -c /var/backups/pm-trades-db/trade_20260622.sql.gz \
+gunzip -c /var/backups/pm-trades-db/pm_backup_20260622_trade_events.sql.gz \
   | docker compose exec -T postgres psql -U postgres -d trade_store
 ```
 
@@ -160,10 +160,14 @@ row from the beginning of time — each one was a superset of the previous.  Onl
 
 ## Retention
 
-Retention is not automated.  To enable it, uncomment the `find … -mtime +N
--delete` line in `scripts/backup.sh`.
+Retention is not currently automated.  Suggested policy: keep daily increments
+for **30 days**.
 
-Suggested policy: keep daily increments for **30 days**.
+To clean up old dumps, run something like (adjust retention as needed):
+
+```bash
+find /var/backups/pm-trades-db -name 'pm_backup_*.sql.gz' -mtime +30 -delete
+```
 
 ---
 
@@ -183,6 +187,19 @@ The current setup protects against logical corruption only.  For hardware
 failure protection, copy the backup files to a separate device (USB drive
 mounted at `/mnt/backup` or similar).  The SQL dump format is portable — you
 can restore on any machine with PostgreSQL installed.
+
+### Redis backpressure
+
+The app receives trade events via a Redis **pub/sub** channel, which is
+fire-and-forget.  If PostgreSQL is locked (e.g., during `VACUUM FULL`), the
+Redis client buffer overflows and messages are dropped.
+
+To fix this in the future, swap pub/sub for a **Redis LIST** or **stream**
+(persistent queue).  Messages persist in Redis until the app acknowledges them,
+so a locked Postgres just means the queue backs up harmlessly.
+
+**TODO:** Convert `trade_stream.py` from `pubsub.listen()` to
+`BLPOP`/`BRPOP` (LIST) or `XREAD` (stream).
 
 ---
 

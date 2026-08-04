@@ -23,14 +23,25 @@ for an **incremental backup with live cleanup**:
 When `CLEANUP_AFTER_BACKUP=true` the script additionally does (per table in `DATA_TABLES`):
 
 ```sql
-DELETE FROM table WHERE received_at < 'YYYY-MM-DD'::date;
-VACUUM FULL table;
+-- only the rows that were just dumped (previous calendar day)
+DELETE FROM table WHERE received_at >= 'YYYY-MM-DD'::date - INTERVAL '1 day'
+                  AND received_at <  'YYYY-MM-DD'::date;
+VACUUM (PARALLEL 0) table;
 ```
 
 (The cutoff date is captured once at script start so the dump and the DELETE
 are guaranteed to use the same boundary, even if execution spans midnight.)
 
-This keeps the live database lean (≈ today's data only, ≈300 MB) instead of
+The DELETE only ever purges the previous day's rows — the exact rows the
+incremental dump just captured.  After a missed run, un-dumped older rows stay
+in the live database (safely accumulating) instead of being silently destroyed;
+run a manual catch-up (see [Catch-up after a missed run](#catch-up-after-a-missed-run))
+to close the gap.  `VACUUM` runs with `PARALLEL 0` as a standalone `psql -c`
+statement: parallel maintenance workers need a >64 MB shared-memory segment the
+container's `/dev/shm` cannot provide, and VACUUM cannot be bundled with `SET`
+in a single `-c` (transaction block error).
+
+This keeps the live database lean (≈ today's data only) instead of
 growing unbounded.  **Set `CLEANUP_AFTER_BACKUP=false`** when you eventually need
 to query historical data live (and have moved backups to proper off-device
 storage — see [Future](#future) below).
@@ -42,11 +53,12 @@ storage — see [Future](#future) below).
 The cleanup **only** fires when **all** of these hold:
 
 1. `CLEANUP_AFTER_BACKUP=true`
-2. `pg_dump` exited with code 0
+2. Every data-dump (psql `COPY`) exited with code 0
 3. The compressed dump file is non-empty (confirmed with `-s`)
 
-If any data-dump fails or is empty, yesterday's data is **preserved** in the
-live database and a warning is logged.  Your daily alert catches this.
+Even then, only the just-dumped previous-day rows are purged — never rows that
+have no backup.  If any data-dump fails or is empty, the cleanup is skipped,
+older data is **preserved** in the live database, and a warning is logged.
 
 ---
 
@@ -77,6 +89,42 @@ systemctl --user enable --now pm-trades-db-backup.timer
 bash /home/nick/projects/pm-project/pm-trades-db/scripts/backup.sh
 ls -lh /var/backups/pm-trades-db
 ```
+
+## Catch-up after a missed run
+
+The script only dumps the **previous** calendar day.  If the timer was down for
+N days, run N catch-up dumps with the same `COPY` technique, one per missed day
+(`YYYYMMDD` = the day *after* the day being dumped — the file name carries the
+run date, and the restore loop applies them in order):
+
+```bash
+COLS=$(docker exec pm-trades-db-postgres-1 psql -U postgres -d trade_store -t -A \
+  -c "SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position)
+      FROM information_schema.columns
+      WHERE table_name='trade_events' AND table_schema='public'")
+
+for DAY in 2026-07-15; do
+  NEXT=$(date -d "$DAY +1 day" +%Y%m%d)
+  {
+    echo "COPY trade_events (${COLS}) FROM stdin;"
+    docker exec pm-trades-db-postgres-1 psql -U postgres -d trade_store -t -A \
+      -c "COPY (SELECT * FROM trade_events
+                WHERE received_at >= '$DAY'::date
+                  AND received_at <  '$DAY'::date + INTERVAL '1 day')
+          TO STDOUT WITH (FORMAT text, DELIMITER E'\t', NULL '')"
+    echo '\.'
+  } | gzip > "/var/backups/pm-trades-db/pm_backup_${NEXT}_trade_events.sql.gz"
+done
+```
+
+Verify each file with `gzip -t` and confirm the row count matches the live DB:
+
+```bash
+gunzip -c /var/backups/pm-trades-db/pm_backup_20260716_trade_events.sql.gz | grep -c $'\t'
+```
+
+(2026-08-04: the Jul 15 – Aug 3 gap was closed this way —
+`pm_backup_20260716_trade_events.sql.gz` holds Jul 15's 1,936,460 rows.)
 
 ---
 
@@ -227,7 +275,10 @@ bash scripts/backup.sh --date 2026-06-15 --duration 3
 - **Cleanup was skipped** → check `journalctl` for the warning message.  Either
   the dump failed or the toggle is off.
 - **"disk full" errors** → check `df -h /` and remove old dumps.  Each daily
-  increment is ≈300 MB.
+  increment is a few hundred MB when the day has data (a quiet day is ~160 B).
+- **`VACUUM cannot run inside a transaction block` / shared-memory errors** →
+  the cleanup VACUUM must be a standalone `psql -c` with `(PARALLEL 0)`, as the
+  script now does; the container's `/dev/shm` cannot size a parallel-worker segment.
 
 ---
 
@@ -235,5 +286,6 @@ bash scripts/backup.sh --date 2026-06-15 --duration 3
 
 | Date | Change |
 |---|---|
+| **2026-08-04** | Safety fix: cleanup DELETE now targets only the just-dumped previous-day range instead of every row older than today — a missed run no longer destroys never-dumped rows. Incremental dump switched from `pg_dump --data-only --where` to psql `COPY` (unavailable in PostgreSQL 16); `VACUUM (PARALLEL 0)` as a standalone statement (container `/dev/shm` too small for parallel workers). Timer re-enabled (daily 03:00, `Persistent=true`). Gap Jul 16 – Aug 3 closed via catch-up (`pm_backup_20260716_trade_events.sql.gz`, 1,936,460 rows). |
 | **2026-06-21** | Full-dump → incremental-dump (`pg_dump --data-only --where`). Added `CLEANUP_AFTER_BACKUP` toggle with `DELETE` + `VACUUM FULL`. Deleted superseded full dumps (Jun 14–20) and the old volume backup. |
 | **2026-06-16** | `docker exec` → compose-aware execution; systemd user timer replaces `/etc/cron.d`. |

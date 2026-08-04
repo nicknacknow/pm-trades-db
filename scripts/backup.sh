@@ -14,6 +14,18 @@ set -euo pipefail
 # to query historical data live (and have off-device storage).
 #
 # History
+#   2026-08-04  Safety fix: cleanup DELETE now targets only the
+#               just-dumped previous-day range ([yesterday, today))
+#               instead of every row older than today.  After a
+#               missed run (e.g. the Jul 16 – Aug 3 gap) the old
+#               DELETE purged rows that had never been dumped.
+#               Also switched the incremental dump from
+#               pg_dump --data-only --where to psql COPY (pg_dump
+#               --where is unavailable in PostgreSQL 16).  VACUUM
+#               runs with (PARALLEL 0) as a standalone statement —
+#               parallel VACUUM needs a >64 MB /dev/shm segment
+#               the container cannot provide, and VACUUM cannot be
+#               bundled with SET in one psql -c (transaction block).
 #   2026-06-21  Full-dump → incremental-dump: pg_dump --data-only
 #               with a WHERE clause on received_at.  Added
 #               CLEANUP_AFTER_BACKUP toggle and daily DELETE +
@@ -65,16 +77,29 @@ docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump \
 
 # ── Incremental data dumps ────────────────────────────────────
 # Only rows where received_at fell on the *previous* calendar day.
+# NOTE: pg_dump --where is unavailable in PostgreSQL 16.
+# We use psql + COPY to produce a valid psql-restorable data block.
 DUMP_OK=true
 for table in "${DATA_TABLES[@]}"; do
   dump_file="$BACKUP_DIR/pm_backup_${TODAY}_${table}.sql.gz"
-  if ! docker compose -f "$COMPOSE_FILE" exec -T postgres pg_dump \
-    -U postgres -d "$DB_NAME" --data-only --table="$table" \
-    --where="received_at >= '${CUTOFF}'::date - INTERVAL '1 day' AND received_at < '${CUTOFF}'::date" \
-    -Z 9 \
-    > "$dump_file"
+  # Build column list for the COPY header (preserves column order).
+  cols=$(docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
+    -U postgres -d "$DB_NAME" -t -A \
+    -c "SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_name='${table}' AND table_schema='public'")
+  if [ -z "$cols" ]; then
+    echo "WARNING: could not retrieve columns for $table" >&2
+    DUMP_OK=false
+    continue
+  fi
+  if ! {
+    echo "COPY ${table} (${cols}) FROM stdin;"
+    docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
+      -U postgres -d "$DB_NAME" -t -A \
+      -c "COPY (SELECT * FROM ${table} WHERE received_at >= '${CUTOFF}'::date - INTERVAL '1 day' AND received_at < '${CUTOFF}'::date) TO STDOUT WITH (FORMAT text, DELIMITER E'\t', NULL '')"
+    echo '\.'
+  } | gzip > "$dump_file"
   then
-    echo "WARNING: pg_dump exited non-zero for $table" >&2
+    echo "WARNING: data dump failed for $table" >&2
     DUMP_OK=false
   elif [ ! -s "$dump_file" ]; then
     echo "WARNING: $dump_file is empty — backup may have failed" >&2
@@ -91,10 +116,11 @@ if [ "$CLEANUP_AFTER_BACKUP" = "true" ] && [ "$DUMP_OK" = "true" ]; then
   for table in "${DATA_TABLES[@]}"; do
     docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
       -U postgres -d "$DB_NAME" \
-      -c "DELETE FROM ${table} WHERE received_at < '${CUTOFF}'::date;"
+      -c "SET statement_timeout TO '60s'; DELETE FROM ${table} WHERE received_at >= '${CUTOFF}'::date - INTERVAL '1 day' AND received_at < '${CUTOFF}'::date;"
     docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
       -U postgres -d "$DB_NAME" \
-      -c "VACUUM FULL ${table};"
+      -c "SET lock_timeout TO '30s';" \
+      -c "VACUUM (PARALLEL 0) ${table};"
   done
   echo "Cleanup complete."
 fi
@@ -103,7 +129,8 @@ fi
 # each table. Harmless now (no queries), essential once we query.
 for table in "${DATA_TABLES[@]}"; do
   docker compose -f "$COMPOSE_FILE" exec -T postgres psql \
-    -U postgres -d "$DB_NAME" -c "ANALYZE ${table};" > /dev/null 2>&1
+    -U postgres -d "$DB_NAME" \
+    -c "SET lock_timeout TO '10s'; ANALYZE ${table};" > /dev/null 2>&1
 done
 
 if [ "$CLEANUP_AFTER_BACKUP" = "true" ] && [ "$DUMP_OK" = "false" ]; then

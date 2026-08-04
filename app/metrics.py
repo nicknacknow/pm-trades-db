@@ -20,6 +20,10 @@ MALFORMED_TRADE_EVENTS_TOTAL = Counter(
     "pm_trades_db_malformed_trade_events_total",
     "Total malformed trade events skipped.",
 )
+DB_ERRORS_TOTAL = Counter(
+    "pm_trades_db_db_errors_total",
+    "Total Postgres errors while persisting trade events (events skipped).",
+)
 
 REDIS_CONNECTED.set(0)
 
@@ -52,3 +56,8 @@ def record_trade_stored() -> None:
 def record_malformed_trade_event() -> None:
     """Count a malformed event that was skipped."""
     MALFORMED_TRADE_EVENTS_TOTAL.inc()
+
+
+def record_db_error() -> None:
+    """Count a Postgres error that caused a trade event to be skipped."""
+    DB_ERRORS_TOTAL.inc()

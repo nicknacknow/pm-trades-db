@@ -5,6 +5,7 @@ from prometheus_client import generate_latest
 from app.metrics import (
     mark_redis_connected,
     mark_redis_disconnected,
+    record_db_error,
     record_malformed_trade_event,
     record_redis_retry,
     record_trade_stored,
@@ -17,6 +18,7 @@ class MetricsTests(unittest.TestCase):
         record_redis_retry()
         record_trade_stored()
         record_malformed_trade_event()
+        record_db_error()
         mark_redis_connected()
 
         payload = generate_latest().decode("utf-8")
@@ -24,4 +26,5 @@ class MetricsTests(unittest.TestCase):
         self.assertIn("pm_trades_db_redis_retries_total 1.0", payload)
         self.assertIn("pm_trades_db_trade_events_stored_total 1.0", payload)
         self.assertIn("pm_trades_db_malformed_trade_events_total 1.0", payload)
+        self.assertIn("pm_trades_db_db_errors_total 1.0", payload)
         self.assertIn("pm_trades_db_redis_connected 1.0", payload)

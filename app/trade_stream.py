@@ -12,6 +12,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from app.metrics import (
     mark_redis_connected,
     mark_redis_disconnected,
+    record_db_error,
     record_malformed_trade_event,
     record_redis_retry,
 )
@@ -56,6 +57,9 @@ async def stream_trade_events_once(db_pool: asyncpg.Pool) -> None:
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 record_malformed_trade_event()
                 print(f"skipping malformed trade event: {exc}")
+            except asyncpg.PostgresError as exc:
+                record_db_error()
+                print(f"skipping trade event: database error: {exc}")
     finally:
         mark_redis_disconnected()
         await close_redis_subscription(redis_client, pubsub)

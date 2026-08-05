@@ -59,10 +59,10 @@ async def stream_trade_events_once(db_pool: asyncpg.Pool) -> None:
                 print(f"skipping malformed trade event: {exc}")
             except asyncpg.PostgresError as exc:
                 record_db_error()
-                print(f"skipping trade event: database error: {exc}")
+                print(f"skipping trade event: database error: {type(exc).__name__}")
             except Exception as exc:
                 record_db_error()
-                print(f"skipping trade event: pool/connection error: {type(exc).__name__}: {exc}")
+                print(f"skipping trade event: pool/connection error: {type(exc).__name__}")
     finally:
         mark_redis_disconnected()
         await close_redis_subscription(redis_client, pubsub)

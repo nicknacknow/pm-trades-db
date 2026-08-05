@@ -40,6 +40,11 @@ set -euo pipefail
 DB_NAME="trade_store"
 BACKUP_DIR="/var/backups/pm-trades-db"
 
+# Off-device copy target (Phase 1 of the backup plan). The USB drive is
+# mounted at /mnt/KINGSTON via fstab (nofail). If it's absent, the copy is
+# skipped with a warning — the primary backup on BACKUP_DIR still succeeds.
+USB_BACKUP_DIR="/mnt/KINGSTON/pm-trades-db-backups"
+
 # ── Toggle ─────────────────────────────────────────────────────
 # Set to "true" to purge yesterday's data from Postgres after a
 # successful backup.  Switch to "false" when you need to query
@@ -106,6 +111,18 @@ for table in "${DATA_TABLES[@]}"; do
     DUMP_OK=false
   fi
 done
+
+# ── Off-device copy: mirror today's dump to the USB drive ──────
+# Phase 1 of the backup plan. Best-effort: if the drive isn't mounted
+# (fstab nofail), warn and continue — the primary backup still succeeded.
+if [ "$DUMP_OK" = "true" ]; then
+  if [ -d "$USB_BACKUP_DIR" ]; then
+    cp -n "$BACKUP_DIR"/*.gz "$USB_BACKUP_DIR"/
+    echo "Copied backup files to $USB_BACKUP_DIR"
+  else
+    echo "WARNING: USB backup target $USB_BACKUP_DIR not mounted — skipping off-device copy" >&2
+  fi
+fi
 
 # ── Cleanup: purge yesterday's data from live DB ──────────────
 # Only fires when:

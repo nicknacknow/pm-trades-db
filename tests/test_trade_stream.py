@@ -1,3 +1,4 @@
+import asyncio
 import json
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -106,3 +107,30 @@ class StreamDatabaseErrorTests(unittest.IsolatedAsyncioTestCase):
 
         record_error.assert_called_once()
         store.assert_awaited_once()
+
+    async def test_pool_acquire_timeout_does_not_crash_loop_and_next_message_processed(self) -> None:
+        """A pool-acquire failure (e.g. asyncio.TimeoutError when the pool is
+        exhausted) must not escape the consumer loop; the next message must
+        still be processed."""
+        db_pool = self._make_db_pool()
+        db_pool.acquire.side_effect = [
+            asyncio.TimeoutError("pool exhausted"),
+            db_pool.acquire.return_value,  # second message: acquire succeeds
+        ]
+        redis_client, _ = _build_pubsub_mocks(
+            [
+                {"type": "message", "data": json.dumps({"event": 1})},
+                {"type": "message", "data": json.dumps({"event": 2})},
+            ]
+        )
+
+        with (
+            patch("app.trade_stream.redis.from_url", return_value=redis_client),
+            patch(
+                "app.trade_stream.store_trade",
+                new=AsyncMock(return_value=None),
+            ) as store,
+        ):
+            await stream_trade_events_once(db_pool)
+
+        self.assertEqual(store.await_count, 1)

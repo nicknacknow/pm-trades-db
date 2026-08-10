@@ -6,6 +6,7 @@ from app.trade_payload import (
     parse_trade_event,
     parse_trade_timestamp,
 )
+from app.pubsub.topics import TRADE_EVENT_TYPE, TRADE_EVENT_VERSION
 
 
 class TradePayloadTests(unittest.TestCase):
@@ -24,11 +25,31 @@ class TradePayloadTests(unittest.TestCase):
         self.assertEqual(parsed.isoformat(), "2026-01-01T00:00:00+00:00")
 
     def test_parse_trade_event_rejects_non_object_trade(self) -> None:
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             parse_trade_event(
                 {
-                    "event_type": "trade",
-                    "event_version": "1.0.0",
+                    "event_type": TRADE_EVENT_TYPE,
+                    "event_version": TRADE_EVENT_VERSION,
                     "trade": "not-an-object",
+                }
+            )
+
+    def test_parse_trade_event_rejects_old_version(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_trade_event(
+                {
+                    "event_type": TRADE_EVENT_TYPE,
+                    "event_version": "1.0.0",
+                    "trade": {
+                        "block_number": 1,
+                        "timestamp": "2026-01-01T00:00:00+00:00",
+                        "transaction_hash": "0xabcdef",
+                        "wallet": "0x1234567890abcdef1234567890abcdef12345678",
+                        "token_id": "1",
+                        "condition_id": "0x" + "11" * 32,
+                        "side": 0,
+                        "maker_amount": 1,
+                        "taker_amount": 2,
+                    },
                 }
             )

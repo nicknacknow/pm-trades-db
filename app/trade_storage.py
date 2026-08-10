@@ -7,7 +7,6 @@ import asyncpg
 from app.trade_payload import (
     canonical_payload,
     event_id_for_payload,
-    parse_trade_event,
     parse_trade_timestamp,
 )
 from app.metrics import record_trade_stored
@@ -70,18 +69,17 @@ async def bootstrap_schema(connection: asyncpg.Connection) -> None:
 
 async def store_trade(
     connection: asyncpg.Connection,
-    payload: dict[str, Any],
+    trade_event: dict[str, Any],
 ) -> None:
-    parsed = parse_trade_event(payload)
-    trade = parsed["trade"]
-    payload_json = canonical_payload(payload)
+    trade = trade_event["trade"]
+    payload_json = canonical_payload(trade_event)
     event_id = event_id_for_payload(payload_json)
 
     await connection.execute(
         INSERT_SQL,
         event_id,
-        parsed["event_type"],
-        parsed["event_version"],
+        trade_event["event_type"],
+        trade_event["event_version"],
         int(trade["block_number"]),
         parse_trade_timestamp(str(trade["timestamp"])),
         str(trade["transaction_hash"]),

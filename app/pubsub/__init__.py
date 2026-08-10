@@ -1,0 +1,1 @@
+"""Pub/sub schema and validation helpers for trade events."""

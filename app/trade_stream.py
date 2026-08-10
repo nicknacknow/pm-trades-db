@@ -16,6 +16,7 @@ from app.metrics import (
     record_redis_retry,
 )
 from app.settings import CHANNEL, REDIS_URL, RETRY_DELAY_SECONDS
+from app.trade_payload import parse_trade_event
 from app.trade_storage import store_trade
 
 
@@ -51,8 +52,9 @@ async def stream_trade_events_once(db_pool: asyncpg.Pool) -> None:
 
             try:
                 payload = json.loads(raw_data)
+                parsed_payload = parse_trade_event(payload)
                 async with db_pool.acquire() as connection:
-                    await store_trade(connection, payload)
+                    await store_trade(connection, parsed_payload)
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 record_malformed_trade_event()
                 print(f"skipping malformed trade event: {exc}")
